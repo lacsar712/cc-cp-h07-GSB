@@ -4,7 +4,7 @@ import os
 import time
 
 from db import connect_sync, ensure_schema_sync, seed_if_empty_sync
-from h07_extra_trap import decide as judge_temp
+from rules import judge_temp
 
 POLL_SECONDS = float(os.environ.get("WORKER_POLL_SECONDS", "1.0"))
 

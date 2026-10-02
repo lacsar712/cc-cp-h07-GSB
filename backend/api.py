@@ -84,6 +84,21 @@ async def login(request: web.Request) -> web.Response:
     )
 
 
+def reading_out(row) -> dict:
+    """把一条读数行组装为对外 JSON：温度等字段一律透传真实值，不得抹空。"""
+    return {
+        "id": row["id"],
+        "probe_id": row["probe_id"],
+        "temp_c": row["temp_c"],
+        "verdict": row["verdict"],
+        "reason": row["reason"],
+        "status": row["status"],
+        "created_by": row["created_by"],
+        "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+        "processed_at": row["processed_at"].isoformat() if row["processed_at"] else None,
+    }
+
+
 async def list_readings(request: web.Request) -> web.Response:
     require_user(request)
     pool: asyncpg.Pool = request.app["pool"]
@@ -94,22 +109,7 @@ async def list_readings(request: web.Request) -> web.Response:
         ORDER BY id DESC
         """
     )
-    out = []
-    for r in rows:
-        out.append(
-            {
-                "id": r["id"],
-                "probe_id": r["probe_id"],
-                "temp_c": r["temp_c"],
-                "verdict": r["verdict"],
-                "reason": r["reason"],
-                "status": r["status"],
-                "created_by": r["created_by"],
-                "created_at": r["created_at"].isoformat() if r["created_at"] else None,
-                "processed_at": r["processed_at"].isoformat() if r["processed_at"] else None,
-            }
-        )
-    return web.json_response(out)
+    return web.json_response([reading_out(r) for r in rows])
 
 
 async def create_reading(request: web.Request) -> web.Response:
@@ -143,21 +143,9 @@ async def create_reading(request: web.Request) -> web.Response:
         temp_c,
         user["username"],
     )
-    return web.json_response(
-        {
-            "id": row["id"],
-            "probe_id": row["probe_id"],
-            "temp_c": row["temp_c"],
-            "verdict": row["verdict"],
-            "reason": row["reason"],
-            "status": row["status"],
-            "created_by": row["created_by"],
-            "created_at": row["created_at"].isoformat() if row["created_at"] else None,
-            "processed_at": None,
-            "message": "已入队，后台工人将认领并判定",
-        },
-        status=201,
-    )
+    out = reading_out(row)
+    out["message"] = "已入队，后台工人将认领并判定"
+    return web.json_response(out, status=201)
 
 
 async def on_startup(app: web.Application) -> None:
