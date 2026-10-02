@@ -41,11 +41,23 @@ export function App() {
 
   const loadReadings = useCallback(async () => {
     if (!token) return;
-    const res = await fetch("/api/readings", { headers: authHeaders() });
-    if (!res.ok) {
-      setError("加载列表失败，请重新登录");
+    let res;
+    try {
+      res = await fetch("/api/readings", { headers: authHeaders() });
+    } catch {
+      // 网络抖动等瞬时错误：保留登录态，下一轮轮询自然恢复。
       return;
     }
+    if (res.status === 401) {
+      // 仅在后端明确判定令牌失效时才回到登录页，正常会话绝不被踢。
+      logout();
+      return;
+    }
+    if (!res.ok) {
+      setError("加载列表失败，将自动重试");
+      return;
+    }
+    setError("");
     setRows(await res.json());
   }, [token, authHeaders]);
 
